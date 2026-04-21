@@ -74,7 +74,7 @@ struct Team {
                 display_ac_times.push_back(probs[i].first_ac_time);
             }
         }
-        sort(display_ac_times.rbegin(), display_ac_times.rend());
+        sort(display_ac_times.begin(), display_ac_times.end(), greater<int>());
     }
 
     bool operator<(const Team& other) const {
@@ -85,12 +85,16 @@ struct Team {
 
         // Compare max AC time, then second max, etc.
         // Rule: smaller solve time ranks higher
-        for (size_t i = 0; i < min(display_ac_times.size(), other.display_ac_times.size()); ++i) {
+        for (size_t i = 0; i < display_ac_times.size(); ++i) {
             if (display_ac_times[i] != other.display_ac_times[i])
                 return display_ac_times[i] < other.display_ac_times[i];
         }
 
         return name < other.name;
+    }
+
+    static bool initial_cmp(const Team* a, const Team* b) {
+        return a->name < b->name;
     }
 };
 
@@ -155,7 +159,6 @@ int main() {
                 cout << "[Error]Add failed: duplicated team name.\n";
             } else {
                 teams_map[name] = {name};
-                team_names.push_back(name);
                 cout << "[Info]Add successfully.\n";
             }
         } else if (cmd == "START") {
@@ -165,13 +168,15 @@ int main() {
                 cout << "[Error]Start failed: competition has started.\n";
             } else {
                 started = true;
+                team_names.clear();
+                for (auto const& [name, team] : teams_map) {
+                    team_names.push_back(name);
+                }
                 sort(team_names.begin(), team_names.end());
-                for (int i = 0; i < team_names.size(); ++i) {
+                for (int i = 0; i < (int)team_names.size(); ++i) {
                     name_to_idx[team_names[i]] = i;
                     scoreboard.push_back(&teams_map[team_names[i]]);
-                }
-                for (int i = 0; i < scoreboard.size(); ++i) {
-                    scoreboard[i]->last_flushed_rank = i + 1;
+                    scoreboard.back()->last_flushed_rank = i + 1;
                 }
                 cout << "[Info]Competition starts.\n";
             }
