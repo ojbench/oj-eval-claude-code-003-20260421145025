@@ -63,25 +63,15 @@ struct Team {
     vector<int> display_ac_times;
     int last_flushed_rank = 0;
 
-    void update_display(bool frozen_state) {
+    void update_display() {
         display_solved = 0;
         display_penalty = 0;
         display_ac_times.clear();
         for (int i = 0; i < 26; ++i) {
-            bool is_ac = false;
-            int time = 0;
-            int failed = 0;
-
             if (probs[i].solved && !probs[i].frozen) {
-                is_ac = true;
-                time = probs[i].first_ac_time;
-                failed = probs[i].failed_before;
-            }
-
-            if (is_ac) {
                 display_solved++;
-                display_penalty += 20LL * failed + time;
-                display_ac_times.push_back(time);
+                display_penalty += 20LL * probs[i].failed_before + probs[i].first_ac_time;
+                display_ac_times.push_back(probs[i].first_ac_time);
             }
         }
         sort(display_ac_times.rbegin(), display_ac_times.rend());
@@ -114,7 +104,7 @@ bool started = false, frozen = false;
 
 void flush_scoreboard() {
     for (auto t : scoreboard) {
-        t->update_display(frozen);
+        t->update_display();
     }
     stable_sort(scoreboard.begin(), scoreboard.end(), [](Team* a, Team* b) {
         return (*a) < (*b);
@@ -271,7 +261,7 @@ int main() {
                         t.probs[target_prob_idx].failed_before += t.probs[target_prob_idx].frozen_failed;
 
                         // Update display stats for ranking comparison
-                        t.update_display(false);
+                        t.update_display();
 
                         // Move team up in scoreboard
                         int cur_pos = old_idx;
@@ -284,7 +274,7 @@ int main() {
                         t.probs[target_prob_idx].failed_before += t.probs[target_prob_idx].frozen_total;
                         // Problem unfreezes even if not solved, but it won't change ranking
                         // However it might change scoreboard display for subsequent SCROLL steps or the final scoreboard
-                        t.update_display(false);
+                        t.update_display();
                     }
                 }
 
