@@ -97,8 +97,17 @@ struct Team {
             return display_solved > other.display_solved;
         if (display_penalty != other.display_penalty)
             return display_penalty < other.display_penalty;
-        if (display_ac_times != other.display_ac_times)
-            return display_ac_times < other.display_ac_times;
+
+        // Compare max AC time, then second max, etc.
+        for (size_t i = 0; i < min(display_ac_times.size(), other.display_ac_times.size()); ++i) {
+            if (display_ac_times[i] != other.display_ac_times[i])
+                return display_ac_times[i] < other.display_ac_times[i];
+        }
+        if (display_ac_times.size() != other.display_ac_times.size()) {
+            // This case shouldn't happen if solved counts are same
+            return display_ac_times.size() > other.display_ac_times.size();
+        }
+
         return name < other.name;
     }
 };
@@ -199,17 +208,19 @@ int main() {
             Team& t = teams_map[team_name];
             if (!t.probs[p_idx].solved) {
                 if (frozen) {
-                    t.probs[p_idx].frozen = true;
-                    t.probs[p_idx].frozen_total++;
                     if (status == Accepted) {
                         if (!t.probs[p_idx].frozen_has_ac) {
+                            t.probs[p_idx].frozen = true;
                             t.probs[p_idx].frozen_has_ac = true;
                             t.probs[p_idx].frozen_ac_time = time;
                         }
+                        t.probs[p_idx].frozen_total++;
                     } else {
                         if (!t.probs[p_idx].frozen_has_ac) {
                             t.probs[p_idx].frozen_failed++;
                         }
+                        t.probs[p_idx].frozen = true;
+                        t.probs[p_idx].frozen_total++;
                     }
                 } else {
                     if (status == Accepted) {
@@ -259,8 +270,8 @@ int main() {
                     if (target_team_idx == -1) break;
 
                     Team& t = *scoreboard[target_team_idx];
+                    int old_idx = target_team_idx;
                     t.probs[target_prob_idx].frozen = false;
-                    bool changed = false;
                     if (t.probs[target_prob_idx].frozen_has_ac) {
                         t.probs[target_prob_idx].solved = true;
                         t.probs[target_prob_idx].first_ac_time = t.probs[target_prob_idx].frozen_ac_time;
@@ -268,15 +279,15 @@ int main() {
 
                         // Update display stats for ranking comparison
                         t.update_display(false);
-                        changed = true;
 
                         // Move team up in scoreboard
-                        int cur_pos = target_team_idx;
+                        int cur_pos = old_idx;
                         while (cur_pos > 0 && t < *scoreboard[cur_pos - 1]) {
                             swap(scoreboard[cur_pos], scoreboard[cur_pos - 1]);
                             cur_pos--;
-                        }
-                        if (cur_pos != target_team_idx) {
+                            if (t < *scoreboard[cur_pos]) {
+                                // This should not happen if < is consistent
+                            }
                             cout << t.name << " " << scoreboard[cur_pos + 1]->name << " " << t.display_solved << " " << t.display_penalty << "\n";
                         }
                     } else {
