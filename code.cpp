@@ -270,16 +270,17 @@ int main() {
 
                         // Move team up in scoreboard
                         int cur_pos = old_idx;
-                        while (cur_pos > 0 && t < *scoreboard[cur_pos - 1]) {
+                        while (cur_pos > 0 && (*scoreboard[cur_pos]) < (*scoreboard[cur_pos - 1])) {
+                            Team* moving_team = scoreboard[cur_pos];
+                            Team* higher_team = scoreboard[cur_pos - 1];
                             swap(scoreboard[cur_pos], scoreboard[cur_pos - 1]);
                             cur_pos--;
-                            cout << t.name << " " << scoreboard[cur_pos + 1]->name << " " << t.display_solved << " " << t.display_penalty << "\n";
+                            cout << moving_team->name << " " << higher_team->name << " " << moving_team->display_solved << " " << moving_team->display_penalty << "\n";
                         }
                     } else {
                         t.probs[target_prob_idx].failed_before += t.probs[target_prob_idx].frozen_total;
-                        // Problem unfreezes even if not solved, but it won't change ranking
-                        // However it might change scoreboard display for subsequent SCROLL steps or the final scoreboard
                         t.update_display();
+                        // No ranking change possible when only adding failed attempts
                     }
                 }
 
