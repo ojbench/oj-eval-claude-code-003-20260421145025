@@ -72,12 +72,7 @@ struct Team {
             int time = 0;
             int failed = 0;
 
-            if (probs[i].frozen) {
-                // If it was already solved before freeze, it remains solved on scoreboard
-                // Actually the problem says "Problems solved before freezing will not be frozen even if submitted again after freezing"
-                // So if probs[i].frozen is true, it means it was NOT solved before freeze.
-                is_ac = false;
-            } else if (probs[i].solved) {
+            if (probs[i].solved && !probs[i].frozen) {
                 is_ac = true;
                 time = probs[i].first_ac_time;
                 failed = probs[i].failed_before;
@@ -99,13 +94,10 @@ struct Team {
             return display_penalty < other.display_penalty;
 
         // Compare max AC time, then second max, etc.
+        // Rule: smaller solve time ranks higher
         for (size_t i = 0; i < min(display_ac_times.size(), other.display_ac_times.size()); ++i) {
             if (display_ac_times[i] != other.display_ac_times[i])
                 return display_ac_times[i] < other.display_ac_times[i];
-        }
-        if (display_ac_times.size() != other.display_ac_times.size()) {
-            // This case shouldn't happen if solved counts are same
-            return display_ac_times.size() > other.display_ac_times.size();
         }
 
         return name < other.name;
@@ -124,10 +116,10 @@ void flush_scoreboard() {
     for (auto t : scoreboard) {
         t->update_display(frozen);
     }
-    sort(scoreboard.begin(), scoreboard.end(), [](Team* a, Team* b) {
+    stable_sort(scoreboard.begin(), scoreboard.end(), [](Team* a, Team* b) {
         return (*a) < (*b);
     });
-    for (int i = 0; i < scoreboard.size(); ++i) {
+    for (int i = 0; i < (int)scoreboard.size(); ++i) {
         scoreboard[i]->last_flushed_rank = i + 1;
     }
 }
@@ -208,24 +200,25 @@ int main() {
             Team& t = teams_map[team_name];
             if (!t.probs[p_idx].solved) {
                 if (frozen) {
+                    // Problems solved before freezing will not be frozen even if submitted again after freezing
+                    // So if it's not solved, it becomes frozen.
+                    t.probs[p_idx].frozen = true;
+                    t.probs[p_idx].frozen_total++;
                     if (status == Accepted) {
                         if (!t.probs[p_idx].frozen_has_ac) {
-                            t.probs[p_idx].frozen = true;
                             t.probs[p_idx].frozen_has_ac = true;
                             t.probs[p_idx].frozen_ac_time = time;
                         }
-                        t.probs[p_idx].frozen_total++;
                     } else {
                         if (!t.probs[p_idx].frozen_has_ac) {
                             t.probs[p_idx].frozen_failed++;
                         }
-                        t.probs[p_idx].frozen = true;
-                        t.probs[p_idx].frozen_total++;
                     }
                 } else {
                     if (status == Accepted) {
                         t.probs[p_idx].solved = true;
                         t.probs[p_idx].first_ac_time = time;
+                        t.probs[p_idx].frozen = false; // Just in case
                         t.solved_count++;
                         t.penalty += 20LL * t.probs[p_idx].failed_before + time;
                         t.ac_times.push_back(time);
@@ -285,14 +278,13 @@ int main() {
                         while (cur_pos > 0 && t < *scoreboard[cur_pos - 1]) {
                             swap(scoreboard[cur_pos], scoreboard[cur_pos - 1]);
                             cur_pos--;
-                            if (t < *scoreboard[cur_pos]) {
-                                // This should not happen if < is consistent
-                            }
                             cout << t.name << " " << scoreboard[cur_pos + 1]->name << " " << t.display_solved << " " << t.display_penalty << "\n";
                         }
                     } else {
                         t.probs[target_prob_idx].failed_before += t.probs[target_prob_idx].frozen_total;
-                        // No ranking change possible
+                        // Problem unfreezes even if not solved, but it won't change ranking
+                        // However it might change scoreboard display for subsequent SCROLL steps or the final scoreboard
+                        t.update_display(false);
                     }
                 }
 
